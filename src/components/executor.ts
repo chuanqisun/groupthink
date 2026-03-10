@@ -1,9 +1,9 @@
-import type { BotContext, Box, CursorAgent, EventBus, Precision } from "./types";
 import { isHumanFocusedBox, nextZIndex, pagePointForIndex, showClick, syncDocText } from "./edit";
 import { humanKeyDelay } from "./keyboard";
-import { getSpanCharIndex, LOCK_CARET } from "./locks";
+import { getLockProtectedRange, getSpanCharIndex, LOCK_CARET, setLockProtectedRange } from "./locks";
 import { moveHumanLike } from "./movement";
 import { chance, clamp, rand, sleep } from "./timing";
+import type { BotContext, Box, CursorAgent, EventBus, Precision } from "./types";
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -53,7 +53,7 @@ export class Executor {
     await sleep(rand(SETTLE_AFTER_CLICK_MIN, SETTLE_AFTER_CLICK_MAX));
   }
 
-  async placeCaret(box: Box, index: number): Promise<void> {
+  async placeCaret(box: Box, index: number, options?: { preserveLock?: boolean }): Promise<void> {
     if (!box.el.isConnected) return;
     const p = pagePointForIndex(box, index, this.ctx.charW);
     this.agent.setMode("arrow");
@@ -62,7 +62,9 @@ export class Executor {
     this.agent.setMode("ibeam");
     showClick(p.x, p.y, this.ctx.cursorLayer);
     box.el.style.zIndex = String(nextZIndex());
-    this.agent.showCaret(box, index);
+    if (!options?.preserveLock) {
+      this.agent.showCaret(box, index);
+    }
     await sleep(rand(CARET_SETTLE_MIN, CARET_SETTLE_MAX));
   }
 
@@ -104,9 +106,11 @@ export class Executor {
     for (const ch of text) {
       if (this.agent.retiring || !box.el.isConnected || isHumanFocusedBox(box)) break;
       lockSpan.textContent = (lockSpan.textContent ?? "") + ch;
+      const spanStart = getSpanCharIndex(box.textEl, lockSpan);
+      setLockProtectedRange(lockSpan, spanStart, spanStart + (lockSpan.textContent?.length ?? 0));
       syncDocText(box);
       this._emitEdit(box);
-      const pos = getSpanCharIndex(box.textEl, lockSpan) + (lockSpan.textContent?.length ?? 0);
+      const pos = spanStart + (lockSpan.textContent?.length ?? 0);
       this.agent._renderCaret(box, pos);
       await sleep(humanKeyDelay(ch, prev));
       prev = ch;
@@ -119,28 +123,55 @@ export class Executor {
 
     this.agent.setMode("ibeam");
 
+    const isSelectionLock = lockSpan.dataset.lockType !== LOCK_CARET;
+    const protectedRange = getLockProtectedRange(box.textEl, lockSpan);
+    setLockProtectedRange(lockSpan, protectedRange.start, protectedRange.end);
+
     for (let i = 0; i < count; i++) {
       if (this.agent.retiring || !box.el.isConnected || isHumanFocusedBox(box)) break;
-      const prev = lockSpan.previousSibling;
-      if (!(prev instanceof Text) || prev.length === 0) {
-        break;
+      if (isSelectionLock) {
+        const lockedText = lockSpan.textContent ?? "";
+        if (!lockedText.length) break;
+        lockSpan.textContent = lockedText.slice(0, -1);
+      } else {
+        const prev = lockSpan.previousSibling;
+        if (!(prev instanceof Text) || prev.length === 0) {
+          break;
+        }
+        if (prev.parentElement?.closest(".bot-lock")) break;
+        prev.textContent = (prev.textContent ?? "").slice(0, -1);
+        if (prev.length === 0) prev.remove();
       }
-      if (prev.parentElement?.closest(".bot-lock")) break;
-      prev.textContent = (prev.textContent ?? "").slice(0, -1);
-      if (prev.length === 0) prev.remove();
       syncDocText(box);
       this._emitEdit(box);
-      const pos = getSpanCharIndex(box.textEl, lockSpan);
-      this.agent._renderCaret(box, pos);
+      const start = getSpanCharIndex(box.textEl, lockSpan);
+      if (isSelectionLock) {
+        const end = start + (lockSpan.textContent?.length ?? 0);
+        if (end > start) {
+          this.agent._renderSel(box, start, end);
+        } else {
+          lockSpan.dataset.lockType = LOCK_CARET;
+          this.agent._renderCaret(box, start);
+        }
+      } else {
+        this.agent._renderCaret(box, start);
+      }
       let ms = rand(BS_MIN, BS_MAX);
       if (chance(BS_HESITATE_CHANCE)) ms += rand(BS_HESITATE_MIN, BS_HESITATE_MAX);
       await sleep(ms);
+    }
+
+    if (isSelectionLock && lockSpan.dataset.lockType !== LOCK_CARET) {
+      lockSpan.dataset.lockType = LOCK_CARET;
+      this.agent._renderCaret(box, getSpanCharIndex(box.textEl, lockSpan));
     }
   }
 
   deleteRange(box: Box): void {
     const lockSpan = this.agent.lockSpan;
     if (!lockSpan) return;
+    const protectedRange = getLockProtectedRange(box.textEl, lockSpan);
+    setLockProtectedRange(lockSpan, protectedRange.start, protectedRange.end);
     lockSpan.textContent = "";
     lockSpan.dataset.lockType = LOCK_CARET;
     syncDocText(box);

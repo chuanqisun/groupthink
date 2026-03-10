@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Doc } from "./document";
 import { Executor } from "./executor";
-import { acquireCaretLock, acquireSelectionLock } from "./locks";
+import { acquireCaretLock, acquireSelectionLock, setLockProtectedRange } from "./locks";
 import type { BotContext, Box, CursorAgent, EventBus } from "./types";
 
 function createEventBus(): EventBus & { events: Array<{ boxId: number }> } {
@@ -103,9 +103,7 @@ describe("executor", () => {
 
     const box = createBox("");
     box.textEl.textContent = "test";
-    const lockSpan = document.createElement("span");
-    lockSpan.className = "bot-lock";
-    box.textEl.appendChild(lockSpan);
+    const lockSpan = acquireCaretLock(box.textEl, 4, 1) as HTMLSpanElement;
     box.doc.text = "test";
 
     const eventBus = createEventBus();
@@ -169,5 +167,58 @@ describe("executor", () => {
     expect(box.doc.text).toBe("axybcd");
     expect(eventBus.events).toHaveLength(2);
     expect(agent.carets.at(-1)).toBe(3);
+  });
+
+  it("keeps the inserted span protected until the final typing delay finishes", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const box = createBox("abcd");
+    const typingLock = acquireCaretLock(box.textEl, 1, 1) as HTMLSpanElement;
+    const eventBus = createEventBus();
+    const agent = createAgent(typingLock);
+    const executor = new Executor(agent, createContext(eventBus));
+
+    const pending = executor.typeInto(box, "x");
+    await Promise.resolve();
+
+    expect(box.doc.text).toBe("axbcd");
+    expect(acquireCaretLock(box.textEl, 1, 2)).toBeNull();
+    expect(acquireCaretLock(box.textEl, 2, 2)).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(29);
+    expect(acquireCaretLock(box.textEl, 0, 2)).not.toBeNull();
+    expect(acquireSelectionLock(box.textEl, 1, 2, 2)).toBeNull();
+    expect(acquireSelectionLock(box.textEl, 2, 3, 2)).toBeNull();
+
+    await vi.runAllTimersAsync();
+    await pending;
+  });
+
+  it("keeps the collapsed backspace edit protected until the final animation delay finishes", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const box = createBox("abcd");
+    const lockSpan = acquireSelectionLock(box.textEl, 1, 2, 1) as HTMLSpanElement;
+    setLockProtectedRange(lockSpan, 1, 2);
+    const eventBus = createEventBus();
+    const agent = createAgent(lockSpan);
+    const executor = new Executor(agent, createContext(eventBus));
+
+    const pending = executor.backspace(box, 1);
+    await Promise.resolve();
+
+    expect(box.doc.text).toBe("acd");
+    expect(lockSpan.dataset.lockType).toBe("caret");
+    expect(acquireCaretLock(box.textEl, 1, 2)).toBeNull();
+    expect(acquireCaretLock(box.textEl, 2, 2)).toBeNull();
+    expect(acquireSelectionLock(box.textEl, 1, 2, 2)).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(24);
+    expect(acquireCaretLock(box.textEl, 0, 2)).not.toBeNull();
+
+    await vi.runAllTimersAsync();
+    await pending;
   });
 });

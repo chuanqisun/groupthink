@@ -250,8 +250,14 @@ export class Bot {
     const box = this._findUsableBox(cmd.boxId);
     if (!box) return;
     try {
-      const text = getText(box);
-      await this.exec.placeCaret(box, text.length);
+      // Move mouse to approximate end (text may shift during animation)
+      const approxLen = getText(box).length;
+      await this.exec.placeCaret(box, approxLen, { preserveLock: true });
+      // Re-read actual end position after async mouse movement
+      const endIdx = getText(box).length;
+      if (!isRangeFree(box.textEl, endIdx, endIdx, this.id)) return;
+      this.showCaret(box, endIdx);
+      if (!this.lockSpan) return;
       await this.exec.typeInto(box, cmd.text);
     } finally {
       this.hideOverlay();
@@ -322,9 +328,13 @@ export class Bot {
     const [start, end] = getBackspaceRange(getText(box), cmd.index);
     const count = Math.max(0, end - start);
     if (count === 0) return;
-    if (!isRangeFree(box.textEl, end - count, end, this.id)) return;
+    if (!isRangeFree(box.textEl, start, end, this.id)) return;
     try {
-      await this.exec.placeCaret(box, end);
+      this.attachOverlay(box);
+      this.lockSpan = acquireSelectionLock(box.textEl, start, end, this.id);
+      if (!this.lockSpan) return;
+      this._renderSel(box, start, end);
+      await this.exec.placeCaret(box, end, { preserveLock: true });
       if (!this._matchesExpectedText(box, cmd.expectedText)) return;
       await this.exec.backspace(box, count);
     } finally {

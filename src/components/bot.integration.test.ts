@@ -207,6 +207,37 @@ describe("multi-bot integration", () => {
     expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
   });
 
+  it("locks the whole backspace range before moving so other bots cannot place a cursor inside it", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const { box, bot1, bot2 } = setupBots("alpha beta");
+    const realPlaceCaret = bot1.exec.placeCaret.bind(bot1.exec);
+
+    vi.spyOn(bot1.exec, "placeCaret").mockImplementation(async (targetBox, index) => {
+      await bot2.executeCommand({
+        type: "insert",
+        boxId: targetBox.id,
+        index: 8,
+        text: "Z",
+        expectedText: "alpha beta",
+      });
+      await realPlaceCaret(targetBox, index);
+    });
+
+    const pending = bot1.executeCommand({
+      type: "backspace",
+      boxId: box.id,
+      index: 10,
+      count: 4,
+      expectedText: "alpha beta",
+    });
+    await flushCommand(pending);
+
+    expect(box.doc.text).toBe("alpha");
+    expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
+  });
+
   it("aborts stale competing inserts while another bot is mid-replacement retyping", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -273,6 +304,67 @@ describe("multi-bot integration", () => {
     await flushCommand(pending);
 
     expect(box.doc.text).toBe("Qalpha beta");
+    expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
+  });
+
+  it("does not insert appended text at a stale index when another bot finishes during mouse animation", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const { box, bot1, bot2 } = setupBots("hello");
+
+    // Bot2 starts first but its mouse movement is slow
+    let resolveBot2Move!: () => void;
+    vi.spyOn(bot2.exec, "moveTo").mockImplementation(() => {
+      return new Promise<void>((resolve) => {
+        resolveBot2Move = resolve;
+      });
+    });
+
+    // Bot2 reads text="hello" (len 5), starts slow moveTo toward index 5
+    const pending2 = bot2.executeCommand({ type: "append", boxId: box.id, text: " beta" });
+    await Promise.resolve();
+
+    // Bot1 fully completes its append while Bot2's mouse is still moving
+    const pending1 = bot1.executeCommand({ type: "append", boxId: box.id, text: " alpha" });
+    await vi.runAllTimersAsync();
+    await pending1;
+    expect(box.doc.text).toBe("hello alpha");
+    expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
+
+    // Bot2's mouse finally arrives — its stale index 5 is now mid-text
+    resolveBot2Move();
+    await vi.runAllTimersAsync();
+    await pending2;
+
+    // " beta" must appear at the END, never in the middle of "hello alpha"
+    expect(box.doc.text).not.toBe("hello beta alpha");
+    if (box.doc.text.includes(" beta")) {
+      expect(box.doc.text).toBe("hello alpha beta");
+    }
+    expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
+  });
+
+  it("two concurrent appenders never interleave their text", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const { box, bot1, bot2 } = setupBots("seed");
+
+    // Both start appending at the same time
+    const pending1 = bot1.executeCommand({ type: "append", boxId: box.id, text: " aaa" });
+    const pending2 = bot2.executeCommand({ type: "append", boxId: box.id, text: " bbb" });
+    await vi.runAllTimersAsync();
+    await pending1;
+    await pending2;
+
+    const text = box.doc.text;
+    // One bot may be blocked, but text must never be interleaved
+    expect(text.includes("ab")).toBe(false);
+    expect(text.includes("ba")).toBe(false);
+    // Must be one of: "seed aaa", "seed bbb", "seed aaa bbb", "seed bbb aaa"
+    const valid = ["seed aaa", "seed bbb", "seed aaa bbb", "seed bbb aaa"];
+    expect(valid).toContain(text);
     expect(box.textEl.querySelectorAll(".bot-lock")).toHaveLength(0);
   });
 
