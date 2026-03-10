@@ -88,7 +88,6 @@ export class Executor {
       this.agent.x = lerp(this.agent.x, p.x, rand(0.6, 1));
       this.agent.y = lerp(this.agent.y, p.y, rand(0.6, 1));
       this.agent.updateCursor();
-      this.agent._renderSel(box, start, idx);
       if (chance(DRAG_PAUSE_CHANCE)) await sleep(rand(DRAG_PAUSE_MIN, DRAG_PAUSE_MAX));
       await sleep(rand(DRAG_STEP_MIN, DRAG_STEP_MAX));
     }
@@ -110,8 +109,6 @@ export class Executor {
       setLockProtectedRange(lockSpan, spanStart, spanStart + (lockSpan.textContent?.length ?? 0));
       syncDocText(box);
       this._emitEdit(box);
-      const pos = spanStart + (lockSpan.textContent?.length ?? 0);
-      this.agent._renderCaret(box, pos);
       await sleep(humanKeyDelay(ch, prev));
       prev = ch;
     }
@@ -144,17 +141,10 @@ export class Executor {
       }
       syncDocText(box);
       this._emitEdit(box);
-      const start = getSpanCharIndex(box.textEl, lockSpan);
       if (isSelectionLock) {
-        const end = start + (lockSpan.textContent?.length ?? 0);
-        if (end > start) {
-          this.agent._renderSel(box, start, end);
-        } else {
+        if (!lockSpan.textContent?.length) {
           lockSpan.dataset.lockType = LOCK_CARET;
-          this.agent._renderCaret(box, start);
         }
-      } else {
-        this.agent._renderCaret(box, start);
       }
       let ms = rand(BS_MIN, BS_MAX);
       if (chance(BS_HESITATE_CHANCE)) ms += rand(BS_HESITATE_MIN, BS_HESITATE_MAX);
@@ -163,7 +153,6 @@ export class Executor {
 
     if (isSelectionLock && lockSpan.dataset.lockType !== LOCK_CARET) {
       lockSpan.dataset.lockType = LOCK_CARET;
-      this.agent._renderCaret(box, getSpanCharIndex(box.textEl, lockSpan));
     }
   }
 

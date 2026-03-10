@@ -188,7 +188,6 @@ export function createBox(id: number, left: number, top: number, text: string, w
     doc: new Doc(normalizeText(text || "")),
     el: document.createElement("div"),
     textEl: document.createElement("div"),
-    overlayEl: document.createElement("div"),
   };
   box.el.className = "box";
   (box.el as BoxElement)._box = box;
@@ -198,7 +197,6 @@ export function createBox(id: number, left: number, top: number, text: string, w
   box.textEl.contentEditable = "true";
   box.textEl.spellcheck = false;
   box.textEl.textContent = text || "";
-  box.overlayEl.className = "overlay";
 
   box.textEl.addEventListener("beforeinput", (event) => {
     const e = event as InputEvent & { dataTransfer?: DataTransfer | null };
@@ -284,7 +282,6 @@ export function createBox(id: number, left: number, top: number, text: string, w
   });
 
   box.el.appendChild(box.textEl);
-  box.el.appendChild(box.overlayEl);
   workspace.appendChild(box.el);
   return box;
 }

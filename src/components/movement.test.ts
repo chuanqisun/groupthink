@@ -16,8 +16,6 @@ function makeAgent(x = 0, y = 0): CursorAgent & { updates: Array<{ x: number; y:
     setMode() {},
     showCaret() {},
     showSelection() {},
-    _renderCaret() {},
-    _renderSel() {},
   };
 }
 

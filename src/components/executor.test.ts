@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Doc } from "./document";
 import { Executor } from "./executor";
-import { acquireCaretLock, acquireSelectionLock, setLockProtectedRange } from "./locks";
+import { acquireCaretLock, acquireSelectionLock, getSpanCharIndex, setLockProtectedRange } from "./locks";
 import type { BotContext, Box, CursorAgent, EventBus } from "./types";
 
 function createEventBus(): EventBus & { events: Array<{ boxId: number }> } {
@@ -19,12 +19,11 @@ function createEventBus(): EventBus & { events: Array<{ boxId: number }> } {
 function createBox(text: string): Box {
   const el = document.createElement("div");
   const textEl = document.createElement("div");
-  const overlayEl = document.createElement("div");
 
   el.className = "box";
   textEl.className = "text";
   textEl.textContent = text;
-  el.append(textEl, overlayEl);
+  el.append(textEl);
   document.body.appendChild(el);
 
   return {
@@ -32,25 +31,19 @@ function createBox(text: string): Box {
     doc: new Doc(text),
     el,
     textEl,
-    overlayEl,
   };
 }
 
-function createAgent(lockSpan: HTMLSpanElement | null): CursorAgent & { carets: number[] } {
+function createAgent(lockSpan: HTMLSpanElement | null): CursorAgent {
   return {
     x: 0,
     y: 0,
     retiring: false,
     lockSpan,
-    carets: [],
     updateCursor() {},
     setMode() {},
     showCaret() {},
     showSelection() {},
-    _renderCaret(_box, index) {
-      this.carets.push(index);
-    },
-    _renderSel() {},
   };
 }
 
@@ -94,7 +87,7 @@ describe("executor", () => {
     expect(lockSpan.textContent).toBe("!");
     expect(box.doc.text).toBe("hi!");
     expect(eventBus.events).toHaveLength(1);
-    expect(agent.carets.at(-1)).toBe(3);
+    expect(getSpanCharIndex(box.textEl, lockSpan) + (lockSpan.textContent?.length ?? 0)).toBe(3);
   });
 
   it("backspaces only the editable text immediately before the lock span", async () => {
@@ -117,7 +110,7 @@ describe("executor", () => {
     expect(box.textEl.textContent).toBe("te");
     expect(box.doc.text).toBe("te");
     expect(eventBus.events).toHaveLength(2);
-    expect(agent.carets.at(-1)).toBe(2);
+    expect(getSpanCharIndex(box.textEl, lockSpan)).toBe(2);
   });
 
   it("turns a selected lock span into a caret after deleting the range", () => {
@@ -166,7 +159,7 @@ describe("executor", () => {
 
     expect(box.doc.text).toBe("axybcd");
     expect(eventBus.events).toHaveLength(2);
-    expect(agent.carets.at(-1)).toBe(3);
+    expect(getSpanCharIndex(box.textEl, typingLock!) + (typingLock!.textContent?.length ?? 0)).toBe(3);
   });
 
   it("keeps the inserted span protected until the final typing delay finishes", async () => {

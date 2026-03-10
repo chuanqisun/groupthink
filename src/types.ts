@@ -8,7 +8,6 @@ export interface Box {
   doc: { text: string; read(): { text: string }; apply(start: number, end: number, insert: string): number };
   el: HTMLDivElement;
   textEl: HTMLDivElement;
-  overlayEl: HTMLDivElement;
 }
 
 export interface BoxElement extends HTMLDivElement {
@@ -119,6 +118,4 @@ export interface CursorAgent {
   setMode(mode: "arrow" | "ibeam"): void;
   showCaret(box: Box, index: number): void;
   showSelection(box: Box, start: number, end: number): void;
-  _renderCaret(box: Box, index: number): void;
-  _renderSel(box: Box, start: number, end: number): void;
 }

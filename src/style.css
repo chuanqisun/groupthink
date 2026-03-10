@@ -43,28 +43,14 @@ body {
   border-color: currentColor;
   border-style: solid;
 }
-.overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.bot-sel {
-  position: absolute;
-  top: 7px;
-  height: 24px;
-  background: var(--selection-color);
-  display: none;
-}
-.bot-caret {
-  position: absolute;
-  top: 5px;
-  width: 1px;
-  height: 28px;
-  background: #000;
-  display: none;
-}
 .bot-lock {
-  /* Invisible wrapper — used as a DOM lock, not a visual element */
+  /* The lock span IS the visual — no separate overlay needed */
+}
+.bot-lock[data-lock-type="selection"] {
+  background: var(--selection-color);
+}
+.bot-lock[data-lock-type="caret"] {
+  border-right: 1px solid currentColor;
 }
 #cursorLayer {
   position: fixed;
