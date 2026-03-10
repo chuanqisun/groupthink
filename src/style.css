@@ -1,0 +1,103 @@
+:root {
+  --selection-color: rgba(0, 120, 215, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+#workspace {
+  position: absolute;
+  inset: 0;
+  background: Canvas;
+  overflow: hidden;
+  user-select: text;
+}
+.box {
+  position: absolute;
+  display: inline-block;
+}
+.text {
+  min-width: 14px;
+  min-height: 28px;
+  padding: 5px 6px;
+  border: 1px dashed color-mix(in srgb, Canvas 70%, CanvasText 30%);
+  background: Canvas;
+  white-space: pre-wrap;
+  word-break: break-word;
+  outline: none;
+  font: 22px/28px monospace;
+
+  &::selection {
+    background: var(--selection-color);
+  }
+}
+.box.selected > .text {
+  border-color: currentColor;
+  border-style: solid;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bot-sel {
+  position: absolute;
+  top: 7px;
+  height: 24px;
+  background: var(--selection-color);
+  display: none;
+}
+.bot-caret {
+  position: absolute;
+  top: 5px;
+  width: 1px;
+  height: 28px;
+  background: #000;
+  display: none;
+}
+.bot-lock {
+  /* Invisible wrapper — used as a DOM lock, not a visual element */
+}
+#cursorLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+.bot-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+.click {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: -6px;
+  border: 1px solid CanvasText;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: pop 0.25s ease-out forwards;
+}
+@keyframes pop {
+  from {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
