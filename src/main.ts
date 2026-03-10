@@ -1,8 +1,8 @@
-import { Bot } from "./bot";
-import { FONT, createBox as createBoxEl, measureCharWidth, nextZIndex, placeCaretEnd, showClick } from "./edit";
-import { createEventBus } from "./events";
-import { INITIAL_BOTS, ecologyLoop } from "./pool";
-import { initSound } from "./sound";
+import { Bot } from "./components/bot";
+import { FONT, createBox as createBoxEl, measureCharWidth, nextZIndex, placeCaretEnd, showClick } from "./components/edit";
+import { createEventBus } from "./components/events";
+import { INITIAL_BOTS, ecologyLoop } from "./components/pool";
+import { initSound } from "./components/sound";
 import "./style.css";
 import type { BotContext, Box, BoxElement } from "./types";
 

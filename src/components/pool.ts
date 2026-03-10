@@ -4,8 +4,11 @@ function choice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;
 }
 
-export const MAX_BOTS = 50;
-export const INITIAL_BOTS = 4;
+export const MAX_BOTS = 2;
+export const INITIAL_BOTS = 2;
+
+// export const MAX_BOTS = 50;
+// export const INITIAL_BOTS = 4;
 export const BOT_LIFETIME_MIN = 14000;
 export const BOT_LIFETIME_MAX = 100000;
 export const BOT_RETIRE_CHECK_CHANCE = 0.15;

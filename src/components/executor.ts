@@ -1,9 +1,9 @@
+import type { BotContext, Box, CursorAgent, EventBus, Precision } from "./types";
 import { isHumanFocusedBox, nextZIndex, pagePointForIndex, showClick, syncDocText } from "./edit";
 import { humanKeyDelay } from "./keyboard";
 import { getSpanCharIndex, LOCK_CARET } from "./locks";
 import { moveHumanLike } from "./movement";
 import { chance, clamp, rand, sleep } from "./timing";
-import type { BotContext, Box, CursorAgent, EventBus, Precision } from "./types";
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;

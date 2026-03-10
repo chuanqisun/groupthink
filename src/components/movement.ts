@@ -16,7 +16,8 @@ export const CORRECTION_PER_PX = 0.9;
 export function humanEase(t: number): number {
   if (t < 0.08) return t * 4.5;
   if (t < 0.7) return 0.36 + ((t - 0.08) / 0.62) * 0.54;
-  return 0.9 + (1 - Math.pow(1 - (t - 0.7) / 0.3, 2.6)) * 0.1;
+  const tail = clamp((t - 0.7) / 0.3, 0, 1);
+  return 0.9 + (1 - Math.pow(1 - tail, 2.6)) * 0.1;
 }
 
 export async function animateSegment(bot: CursorAgent, from: Point, to: Point, duration: number, bendScale = 1, jitter = 0.08): Promise<void> {

@@ -51,6 +51,7 @@ export interface InsertCommand {
   boxId: number;
   index: number;
   text: string;
+  expectedText?: string;
 }
 
 export interface ReplaceCommand {
@@ -59,6 +60,7 @@ export interface ReplaceCommand {
   start: number;
   end: number;
   text: string;
+  expectedText?: string;
 }
 
 export interface DeleteCommand {
@@ -66,6 +68,7 @@ export interface DeleteCommand {
   boxId: number;
   start: number;
   end: number;
+  expectedText?: string;
 }
 
 export interface BackspaceCommand {
@@ -73,6 +76,7 @@ export interface BackspaceCommand {
   boxId: number;
   index: number;
   count: number;
+  expectedText?: string;
 }
 
 export interface MoveCommand {

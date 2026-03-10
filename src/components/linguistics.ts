@@ -4,6 +4,23 @@ function choice<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;
 }
 
+function isWordChar(char: string): boolean {
+  return /[A-Za-z0-9']/.test(char);
+}
+
+function clampIndex(text: string, index: number): number {
+  return Math.max(0, Math.min(text.length, index));
+}
+
+function wordRanges(text: string): Array<[number, number]> {
+  return [...text.matchAll(/[A-Za-z0-9']+[.,!?;:…]*/g)]
+    .map((match) => {
+      if (match.index == null) return null;
+      return [match.index, match.index + match[0].length] as [number, number];
+    })
+    .filter((range): range is [number, number] => range !== null);
+}
+
 export const WORDS = [
   "human",
   "bot",
@@ -134,4 +151,73 @@ export function pickRange(text: string): [number, number] {
     return [bounds[i] ?? 0, bounds[j] ?? text.length];
   }
   return [0, text.length];
+}
+
+export function expandDeleteRange(text: string, start: number, end: number): [number, number] {
+  const safeStart = clampIndex(text, Math.min(start, end));
+  const safeEnd = clampIndex(text, Math.max(start, end));
+
+  if (safeStart === safeEnd) return [safeStart, safeEnd];
+
+  const ranges = wordRanges(text);
+  if (!ranges.length) return [safeStart, safeEnd];
+
+  let firstTouched = -1;
+  let lastTouched = -1;
+
+  for (let i = 0; i < ranges.length; i++) {
+    const [wordStart, wordEnd] = ranges[i] as [number, number];
+    if (safeEnd <= wordStart || safeStart >= wordEnd) continue;
+    if (firstTouched === -1) firstTouched = i;
+    lastTouched = i;
+  }
+
+  if (firstTouched !== -1 && lastTouched !== -1) {
+    return [ranges[firstTouched]![0], ranges[lastTouched]![1]];
+  }
+
+  const leftWordIndex = [...ranges.keys()].reverse().find((i) => (ranges[i]?.[1] ?? 0) <= safeStart) ?? -1;
+  const rightWordIndex = ranges.findIndex(([, wordEnd], i) => {
+    const wordStart = ranges[i]?.[0] ?? 0;
+    return wordStart >= safeEnd || wordEnd > safeEnd;
+  });
+
+  if (leftWordIndex !== -1 && rightWordIndex !== -1 && leftWordIndex + 1 === rightWordIndex) {
+    const [leftStart] = ranges[leftWordIndex] as [number, number];
+    return [leftStart, safeEnd];
+  }
+
+  if (leftWordIndex !== -1) {
+    const [leftStart] = ranges[leftWordIndex] as [number, number];
+    return [leftStart, safeEnd];
+  }
+
+  if (rightWordIndex !== -1) {
+    const [, rightEnd] = ranges[rightWordIndex] as [number, number];
+    return [safeStart, rightEnd];
+  }
+
+  return [safeStart, safeEnd];
+}
+
+export function getBackspaceRange(text: string, index: number): [number, number] {
+  const safeIndex = clampIndex(text, index);
+  if (safeIndex === 0) return [0, 0];
+
+  const ranges = wordRanges(text);
+  if (!ranges.length) return [0, safeIndex];
+
+  for (let i = ranges.length - 1; i >= 0; i--) {
+    const [start, end] = ranges[i] as [number, number];
+    if (safeIndex > start && safeIndex <= end) {
+      return [start, safeIndex];
+    }
+    if (end <= safeIndex) {
+      let deleteEnd = safeIndex;
+      while (deleteEnd > end && !isWordChar(text[deleteEnd - 1] ?? "")) deleteEnd--;
+      return [start, Math.max(end, deleteEnd === end ? safeIndex : safeIndex)];
+    }
+  }
+
+  return [0, safeIndex];
 }

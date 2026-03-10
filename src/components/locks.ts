@@ -122,6 +122,14 @@ export function getLockSpan(textEl: HTMLElement, botId: number): HTMLSpanElement
   return span instanceof HTMLSpanElement ? span : null;
 }
 
+function isPointInsideText(start: number, sStart: number, sEnd: number): boolean {
+  return start >= sStart && start < sEnd;
+}
+
+function doesRangeOverlapText(start: number, end: number, sStart: number, sEnd: number): boolean {
+  return start < sEnd && end > sStart;
+}
+
 export function isRangeFree(textEl: HTMLElement, start: number, end: number, excludeBotId: number): boolean {
   const spans = textEl.querySelectorAll(".bot-lock");
   for (const span of spans) {
@@ -129,9 +137,18 @@ export function isRangeFree(textEl: HTMLElement, start: number, end: number, exc
     if (span.dataset.botId === String(excludeBotId)) continue;
     const sStart = getSpanCharIndex(textEl, span);
     const sEnd = sStart + (span.textContent?.length ?? 0);
+    const caretIndex = span.dataset.lockType === LOCK_CARET ? sEnd : null;
+
     if (start === end) {
-      if (start > sStart && start < sEnd) return false;
-    } else if (start < sEnd && end > sStart) {
+      if (isPointInsideText(start, sStart, sEnd)) {
+        return false;
+      }
+      if (caretIndex !== null && start === caretIndex) {
+        return false;
+      }
+    } else if (doesRangeOverlapText(start, end, sStart, sEnd)) {
+      return false;
+    } else if (caretIndex !== null && start <= caretIndex && caretIndex < end) {
       return false;
     }
   }

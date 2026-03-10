@@ -1,6 +1,6 @@
 import { appendCmd, backspaceCmd, createCmd, deleteCmd, insertCmd, moveBoxCmd, moveCmd, replaceCmd } from "./commands";
 import { canBotUseBox, findOpenSpot, getText } from "./edit";
-import { appendChunk, insertChunk, pickRange, randomPhrase, randomWords, wordBoundaries } from "./linguistics";
+import { appendChunk, expandDeleteRange, getBackspaceRange, insertChunk, pickRange, randomPhrase, randomWords, wordBoundaries } from "./linguistics";
 import { chance, rand } from "./timing";
 import type { BotContext, Box, PlanResult } from "./types";
 
@@ -39,7 +39,7 @@ export class RandomPlanner {
       const text = getText(box);
       const bounds = wordBoundaries(text);
       const index = choice(bounds);
-      return { cmd: insertCmd(box.id, index, insertChunk(text, index)), boxId: box.id };
+      return { cmd: insertCmd(box.id, index, insertChunk(text, index), text), boxId: box.id };
     }
 
     if (action === "replace") {
@@ -51,7 +51,7 @@ export class RandomPlanner {
       const text = getText(box);
       const [a, b] = pickRange(text);
       const newText = randomWords(1, chance(0.5) ? 1 : 2);
-      return { cmd: replaceCmd(box.id, a, b, newText), boxId: box.id };
+      return { cmd: replaceCmd(box.id, a, b, newText, text), boxId: box.id };
     }
 
     if (action === "delete") {
@@ -61,8 +61,8 @@ export class RandomPlanner {
       }
       const box = choice(pool);
       const text = getText(box);
-      const [a, b] = pickRange(text);
-      return { cmd: deleteCmd(box.id, a, b), boxId: box.id };
+      const [a, b] = expandDeleteRange(text, ...pickRange(text));
+      return { cmd: deleteCmd(box.id, a, b, text), boxId: box.id };
     }
 
     if (action === "backspace") {
@@ -78,13 +78,9 @@ export class RandomPlanner {
         return { cmd: appendCmd(box.id, appendChunk(text)), boxId: box.id };
       }
       const index = chance(0.6) ? text.length : choice(nonZero);
-      let prevBound = 0;
-      for (const boundary of bounds) {
-        if (boundary < index) prevBound = boundary;
-        else break;
-      }
-      const count = Math.max(1, index - prevBound);
-      return { cmd: backspaceCmd(box.id, index, count), boxId: box.id };
+      const [start, end] = getBackspaceRange(text, index);
+      const count = Math.max(1, end - start);
+      return { cmd: backspaceCmd(box.id, index, count, text), boxId: box.id };
     }
 
     const rect = wsRect();

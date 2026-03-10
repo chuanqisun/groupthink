@@ -1,7 +1,7 @@
 import { ARROW_SVG, IBEAM_SVG } from "./cursors";
 import { canBotUseBox, getText, isHumanFocusedBox, moveBox, PAD_X, safeSyncTextEl, syncDocText } from "./edit";
 import { Executor } from "./executor";
-import { pickRange, randomWords } from "./linguistics";
+import { expandDeleteRange, getBackspaceRange, pickRange, randomWords } from "./linguistics";
 import { acquireCaretLock, acquireSelectionLock, getSpanCharIndex, isRangeFree, LOCK_CARET, releaseLock } from "./locks";
 import { randomEdgePoint } from "./movement";
 import { RandomPlanner } from "./planner";
@@ -183,6 +183,15 @@ export class Bot {
     return this.ctx.boxes.find((box) => box.id === boxId);
   }
 
+  _findUsableBox(boxId: number): Box | null {
+    const box = this._findBox(boxId);
+    return canBotUseBox(box) ? box : null;
+  }
+
+  _matchesExpectedText(box: Box, expectedText?: string): boolean {
+    return expectedText == null || getText(box) === expectedText;
+  }
+
   async executeCommand(cmd: Command): Promise<void> {
     switch (cmd.type) {
       case "move":
@@ -238,8 +247,8 @@ export class Bot {
   }
 
   async _execAppend(cmd: Extract<Command, { type: "append" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
     try {
       const text = getText(box);
       await this.exec.placeCaret(box, text.length);
@@ -251,8 +260,9 @@ export class Bot {
   }
 
   async _execInsert(cmd: Extract<Command, { type: "insert" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
+    if (!this._matchesExpectedText(box, cmd.expectedText)) return;
     if (!isRangeFree(box.textEl, cmd.index, cmd.index, this.id)) return;
     try {
       await this.exec.placeCaret(box, cmd.index);
@@ -264,8 +274,9 @@ export class Bot {
   }
 
   async _execReplace(cmd: Extract<Command, { type: "replace" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
+    if (!this._matchesExpectedText(box, cmd.expectedText)) return;
     if (!isRangeFree(box.textEl, cmd.start, cmd.end, this.id)) return;
     try {
       await this.exec.dragSelect(box, cmd.start, cmd.end);
@@ -282,14 +293,17 @@ export class Bot {
   }
 
   async _execDelete(cmd: Extract<Command, { type: "delete" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
-    if (!isRangeFree(box.textEl, cmd.start, cmd.end, this.id)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
+    if (!this._matchesExpectedText(box, cmd.expectedText)) return;
+    const [safeStart, safeEnd] = expandDeleteRange(getText(box), cmd.start, cmd.end);
+    if (safeStart === safeEnd) return;
+    if (!isRangeFree(box.textEl, safeStart, safeEnd, this.id)) return;
     try {
-      await this.exec.dragSelect(box, cmd.start, cmd.end);
+      await this.exec.dragSelect(box, safeStart, safeEnd);
       if (!box.el.isConnected || isHumanFocusedBox(box)) return;
       this.exec.deleteRange(box);
-      const spanIdx = this.lockSpan ? getSpanCharIndex(box.textEl, this.lockSpan) : cmd.start;
+      const spanIdx = this.lockSpan ? getSpanCharIndex(box.textEl, this.lockSpan) : safeStart;
       this._renderCaret(box, spanIdx);
       await sleep(rand(40, 90));
     } finally {
@@ -299,12 +313,16 @@ export class Bot {
   }
 
   async _execBackspace(cmd: Extract<Command, { type: "backspace" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
-    if (!isRangeFree(box.textEl, Math.max(0, cmd.index - cmd.count), cmd.index, this.id)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
+    if (!this._matchesExpectedText(box, cmd.expectedText)) return;
+    const [start, end] = getBackspaceRange(getText(box), cmd.index);
+    const count = Math.max(0, end - start);
+    if (count === 0) return;
+    if (!isRangeFree(box.textEl, end - count, end, this.id)) return;
     try {
-      await this.exec.placeCaret(box, cmd.index);
-      await this.exec.backspace(box, cmd.count);
+      await this.exec.placeCaret(box, end);
+      await this.exec.backspace(box, count);
     } finally {
       this.hideOverlay();
       this.setMode("arrow");
@@ -312,8 +330,8 @@ export class Bot {
   }
 
   async _execMoveBox(cmd: Extract<Command, { type: "moveBox" }>): Promise<void> {
-    const box = this._findBox(cmd.boxId);
-    if (!canBotUseBox(box)) return;
+    const box = this._findUsableBox(cmd.boxId);
+    if (!box) return;
     const boxRect = box.el.getBoundingClientRect();
     const cx = boxRect.left + boxRect.width / 2;
     const cy = boxRect.top + boxRect.height / 2;
