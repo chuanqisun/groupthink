@@ -266,6 +266,7 @@ export class Bot {
     if (!isRangeFree(box.textEl, cmd.index, cmd.index, this.id)) return;
     try {
       await this.exec.placeCaret(box, cmd.index);
+      if (!this._matchesExpectedText(box, cmd.expectedText)) return;
       await this.exec.typeInto(box, cmd.text);
     } finally {
       this.hideOverlay();
@@ -280,6 +281,7 @@ export class Bot {
     if (!isRangeFree(box.textEl, cmd.start, cmd.end, this.id)) return;
     try {
       await this.exec.dragSelect(box, cmd.start, cmd.end);
+      if (!this._matchesExpectedText(box, cmd.expectedText)) return;
       if (!box.el.isConnected || isHumanFocusedBox(box)) return;
       this.exec.deleteRange(box);
       const spanIdx = this.lockSpan ? getSpanCharIndex(box.textEl, this.lockSpan) : cmd.start;
@@ -301,6 +303,7 @@ export class Bot {
     if (!isRangeFree(box.textEl, safeStart, safeEnd, this.id)) return;
     try {
       await this.exec.dragSelect(box, safeStart, safeEnd);
+      if (!this._matchesExpectedText(box, cmd.expectedText)) return;
       if (!box.el.isConnected || isHumanFocusedBox(box)) return;
       this.exec.deleteRange(box);
       const spanIdx = this.lockSpan ? getSpanCharIndex(box.textEl, this.lockSpan) : safeStart;
@@ -322,6 +325,7 @@ export class Bot {
     if (!isRangeFree(box.textEl, end - count, end, this.id)) return;
     try {
       await this.exec.placeCaret(box, end);
+      if (!this._matchesExpectedText(box, cmd.expectedText)) return;
       await this.exec.backspace(box, count);
     } finally {
       this.hideOverlay();
