@@ -30,11 +30,13 @@ export class Executor {
   agent: CursorAgent;
   ctx: BotContext;
   bus: EventBus | null;
+  mouseClickIndex: number;
 
-  constructor(agent: CursorAgent, ctx: BotContext) {
+  constructor(agent: CursorAgent, ctx: BotContext, mouseClickIndex = 0) {
     this.agent = agent;
     this.ctx = ctx;
     this.bus = ctx.eventBus || null;
+    this.mouseClickIndex = mouseClickIndex;
   }
 
   _emitEdit(box: Box): void {
@@ -50,6 +52,7 @@ export class Executor {
     await this.moveTo(x, y, "click");
     await sleep(rand(SETTLE_BEFORE_CLICK_MIN, SETTLE_BEFORE_CLICK_MAX));
     showClick(x, y, this.ctx.cursorLayer);
+    this.ctx.soundEngine?.playMouseClick(this.mouseClickIndex);
     await sleep(rand(SETTLE_AFTER_CLICK_MIN, SETTLE_AFTER_CLICK_MAX));
   }
 
@@ -61,6 +64,7 @@ export class Executor {
     await sleep(rand(SETTLE_BEFORE_CLICK_MIN, SETTLE_BEFORE_CLICK_MAX));
     this.agent.setMode("ibeam");
     showClick(p.x, p.y, this.ctx.cursorLayer);
+    this.ctx.soundEngine?.playMouseClick(this.mouseClickIndex);
     box.el.style.zIndex = String(nextZIndex());
     if (!options?.preserveLock) {
       this.agent.showCaret(box, index);
@@ -76,6 +80,7 @@ export class Executor {
     await this.moveTo(p0.x, p0.y, "text");
     await sleep(rand(10, 35));
     showClick(p0.x, p0.y, this.ctx.cursorLayer);
+    this.ctx.soundEngine?.playMouseClick(this.mouseClickIndex);
     await sleep(rand(15, 40));
 
     const steps = Math.max(8, (end - start) * 3);
@@ -105,6 +110,7 @@ export class Executor {
     for (const ch of text) {
       if (this.agent.retiring || !box.el.isConnected || isHumanFocusedBox(box)) break;
       lockSpan.textContent = (lockSpan.textContent ?? "") + ch;
+      this.ctx.soundEngine?.playKey(ch);
       const spanStart = getSpanCharIndex(box.textEl, lockSpan);
       setLockProtectedRange(lockSpan, spanStart, spanStart + (lockSpan.textContent?.length ?? 0));
       syncDocText(box);
@@ -140,6 +146,7 @@ export class Executor {
         if (prev.length === 0) prev.remove();
       }
       syncDocText(box);
+      this.ctx.soundEngine?.playKey("\b");
       this._emitEdit(box);
       if (isSelectionLock) {
         if (!lockSpan.textContent?.length) {
@@ -164,6 +171,7 @@ export class Executor {
     lockSpan.textContent = "";
     lockSpan.dataset.lockType = LOCK_CARET;
     syncDocText(box);
+    this.ctx.soundEngine?.playKey("\b");
     this._emitEdit(box);
   }
 }

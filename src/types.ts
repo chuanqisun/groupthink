@@ -98,6 +98,17 @@ export interface PlanResult {
   boxId: number | null;
 }
 
+export interface SoundEngine {
+  /** Resume the AudioContext — must be called from a user-gesture handler */
+  start(): void;
+  /** Play a keyboard key sound for the given character */
+  playKey(char: string): void;
+  /** Play a mouse click sound (clickIndex 0–3) */
+  playMouseClick(clickIndex: number): void;
+  /** Whether start() has been called */
+  readonly started: boolean;
+}
+
 export interface BotContext {
   boxes: Box[];
   cursorLayer: HTMLElement;
@@ -105,6 +116,7 @@ export interface BotContext {
   wsRect: () => DOMRect;
   createBox: (x: number, y: number, text: string) => Box;
   eventBus: EventBus;
+  soundEngine?: SoundEngine;
 }
 
 export type Precision = "travel" | "click" | "text" | "normal";

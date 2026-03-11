@@ -2,12 +2,13 @@ import { Bot } from "./components/bot";
 import { FONT, createBox as createBoxEl, measureCharWidth, nextZIndex, placeCaretEnd, showClick } from "./components/edit";
 import { createEventBus } from "./components/events";
 import { INITIAL_BOTS, ecologyLoop } from "./components/pool";
-import { initSound } from "./components/sound";
+import { createSoundEngine } from "./components/sound-simulator/engine";
 import "./style.css";
 import type { BotContext, Box, BoxElement } from "./types";
 
 const workspaceEl = document.getElementById("workspace");
 const cursorLayerEl = document.getElementById("cursorLayer");
+const hintEl = document.getElementById("hint");
 
 if (!(workspaceEl instanceof HTMLElement) || !(cursorLayerEl instanceof HTMLElement)) {
   throw new Error("Workspace root elements are missing.");
@@ -21,7 +22,6 @@ function wsRect(): DOMRect {
 }
 
 const eventBus = createEventBus();
-initSound(eventBus);
 const boxes: Box[] = [];
 const bots = new Map<number, Bot>();
 let boxSeq = 0;
@@ -46,18 +46,12 @@ function activeBotCount(): number {
   return [...bots.values()].filter((bot) => !bot.retiring).length;
 }
 
+// Click animation (always active)
 workspace.addEventListener("mousedown", (e) => {
   showClick(e.clientX, e.clientY, cursorLayer);
 });
 
-workspace.addEventListener("click", (e) => {
-  if (e.target !== workspace) return;
-  const r = wsRect();
-  const box = createBox(e.clientX - r.left, e.clientY - r.top, "");
-  box.textEl.focus();
-  placeCaretEnd(box.textEl);
-});
-
+// Box selection & drag (always active)
 let selectedBox: Box | null = null;
 let dragging: { box: Box; offsetX: number; offsetY: number } | null = null;
 
@@ -112,11 +106,51 @@ window.addEventListener("mouseup", () => {
   dragging = null;
 });
 
-for (let i = 0; i < INITIAL_BOTS; i++) {
-  window.setTimeout(spawnBot, i * 150);
+// Helper: create a text box from a click event
+function handleBoxClick(e: MouseEvent): void {
+  if (e.target !== workspace) return;
+  const r = wsRect();
+  const box = createBox(e.clientX - r.left, e.clientY - r.top, "");
+  box.textEl.focus();
+  placeCaretEnd(box.textEl);
 }
-void ecologyLoop({
-  activeBotCount,
-  spawnBot,
-  getActiveBots: () => [...bots.values()].filter((bot) => !bot.retiring),
-});
+
+// ── Async initialisation: load sounds → wait for click → spawn bots ─────────
+(async () => {
+  // 1. Show loading state
+  if (hintEl) hintEl.textContent = "Waiting for collaborators to join\u2026";
+
+  // 2. Pre-load all audio assets into buffers
+  const soundEngine = await createSoundEngine();
+  botCtx.soundEngine = soundEngine;
+
+  // 3. Assets ready – prompt the user to click
+  if (hintEl) hintEl.textContent = "Click to create text";
+
+  // 4. Wait for the first click to unlock the AudioContext (user-gesture requirement)
+  await new Promise<void>((resolve) => {
+    workspace.addEventListener(
+      "click",
+      function startHandler(e: MouseEvent) {
+        soundEngine.start();
+        if (hintEl) hintEl.remove();
+        handleBoxClick(e);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+
+  // 5. Register persistent box-creation handler for subsequent clicks
+  workspace.addEventListener("click", handleBoxClick);
+
+  // 6. Start spawning bots
+  for (let i = 0; i < INITIAL_BOTS; i++) {
+    window.setTimeout(spawnBot, i * 150);
+  }
+  void ecologyLoop({
+    activeBotCount,
+    spawnBot,
+    getActiveBots: () => [...bots.values()].filter((bot) => !bot.retiring),
+  });
+})();
