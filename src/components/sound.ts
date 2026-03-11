@@ -59,7 +59,9 @@ export class SoundEngine implements SoundPlayer {
     const urls = [keyboardSpriteUrl, ...MOUSE_URLS];
     const arrayBuffers = await Promise.all(urls.map((u) => fetch(u).then((r) => r.arrayBuffer())));
     const audioBuffers = await Promise.all(arrayBuffers.map((ab) => this.ctx.decodeAudioData(ab)));
-    this.keyboardBuffer = audioBuffers[0]!;
+    const kb = audioBuffers[0];
+    if (!kb) throw new Error("Failed to decode keyboard sound sprite");
+    this.keyboardBuffer = kb;
     this.mouseBuffers = audioBuffers.slice(1);
   }
 
@@ -78,8 +80,10 @@ export class SoundEngine implements SoundPlayer {
     const keycode = ch === "\b" ? BACKSPACE_KEYCODE : charToKeycode[ch];
     const map = soundmap as Record<string, number[] | undefined>;
     const entry = keycode != null ? map[String(keycode)] : null;
-    const fallback = map[String(FALLBACK_KEYCODE)]!;
-    const [offsetMs, durationMs] = entry ?? fallback;
+    const fallback = map[String(FALLBACK_KEYCODE)];
+    const sprite = entry ?? fallback;
+    if (!sprite) return;
+    const [offsetMs, durationMs] = sprite;
     const source = this.ctx.createBufferSource();
     source.buffer = this.keyboardBuffer;
     source.connect(this.ctx.destination);

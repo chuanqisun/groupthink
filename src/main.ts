@@ -61,7 +61,7 @@ function startBots(): void {
 
 /* ---------- Loading & activation flow ---------- */
 
-hint.textContent = "Waiting for collaborators to join\u2026";
+hint.textContent = "Waiting for collaborators to join…";
 
 let soundReady = false;
 let activated = false;
