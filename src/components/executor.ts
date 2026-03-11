@@ -30,15 +30,22 @@ export class Executor {
   agent: CursorAgent;
   ctx: BotContext;
   bus: EventBus | null;
+  clickSoundIndex: number;
 
-  constructor(agent: CursorAgent, ctx: BotContext) {
+  constructor(agent: CursorAgent, ctx: BotContext, clickSoundIndex: number) {
     this.agent = agent;
     this.ctx = ctx;
     this.bus = ctx.eventBus || null;
+    this.clickSoundIndex = clickSoundIndex;
   }
 
   _emitEdit(box: Box): void {
     this.bus?.emit("edit", { boxId: box.id });
+  }
+
+  private _clickWithSound(x: number, y: number): void {
+    showClick(x, y, this.ctx.cursorLayer);
+    this.ctx.soundEngine?.playMouseClick(this.clickSoundIndex);
   }
 
   async moveTo(x: number, y: number, precision: Precision): Promise<void> {
@@ -49,7 +56,7 @@ export class Executor {
     this.agent.setMode("arrow");
     await this.moveTo(x, y, "click");
     await sleep(rand(SETTLE_BEFORE_CLICK_MIN, SETTLE_BEFORE_CLICK_MAX));
-    showClick(x, y, this.ctx.cursorLayer);
+    this._clickWithSound(x, y);
     await sleep(rand(SETTLE_AFTER_CLICK_MIN, SETTLE_AFTER_CLICK_MAX));
   }
 
@@ -60,7 +67,7 @@ export class Executor {
     await this.moveTo(p.x, p.y, "text");
     await sleep(rand(SETTLE_BEFORE_CLICK_MIN, SETTLE_BEFORE_CLICK_MAX));
     this.agent.setMode("ibeam");
-    showClick(p.x, p.y, this.ctx.cursorLayer);
+    this._clickWithSound(p.x, p.y);
     box.el.style.zIndex = String(nextZIndex());
     if (!options?.preserveLock) {
       this.agent.showCaret(box, index);
@@ -75,7 +82,7 @@ export class Executor {
     this.agent.setMode("ibeam");
     await this.moveTo(p0.x, p0.y, "text");
     await sleep(rand(10, 35));
-    showClick(p0.x, p0.y, this.ctx.cursorLayer);
+    this._clickWithSound(p0.x, p0.y);
     await sleep(rand(15, 40));
 
     const steps = Math.max(8, (end - start) * 3);
@@ -104,6 +111,7 @@ export class Executor {
 
     for (const ch of text) {
       if (this.agent.retiring || !box.el.isConnected || isHumanFocusedBox(box)) break;
+      this.ctx.soundEngine?.playKeystroke(ch);
       lockSpan.textContent = (lockSpan.textContent ?? "") + ch;
       const spanStart = getSpanCharIndex(box.textEl, lockSpan);
       setLockProtectedRange(lockSpan, spanStart, spanStart + (lockSpan.textContent?.length ?? 0));
@@ -126,6 +134,7 @@ export class Executor {
 
     for (let i = 0; i < count; i++) {
       if (this.agent.retiring || !box.el.isConnected || isHumanFocusedBox(box)) break;
+      this.ctx.soundEngine?.playKeystroke("\b");
       if (isSelectionLock) {
         const lockedText = lockSpan.textContent ?? "";
         if (!lockedText.length) break;
@@ -159,6 +168,7 @@ export class Executor {
   deleteRange(box: Box): void {
     const lockSpan = this.agent.lockSpan;
     if (!lockSpan) return;
+    this.ctx.soundEngine?.playKeystroke("\b");
     const protectedRange = getLockProtectedRange(box.textEl, lockSpan);
     setLockProtectedRange(lockSpan, protectedRange.start, protectedRange.end);
     lockSpan.textContent = "";

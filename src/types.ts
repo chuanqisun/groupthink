@@ -98,6 +98,11 @@ export interface PlanResult {
   boxId: number | null;
 }
 
+export interface SoundPlayer {
+  playKeystroke(ch: string): void;
+  playMouseClick(index: number): void;
+}
+
 export interface BotContext {
   boxes: Box[];
   cursorLayer: HTMLElement;
@@ -105,6 +110,7 @@ export interface BotContext {
   wsRect: () => DOMRect;
   createBox: (x: number, y: number, text: string) => Box;
   eventBus: EventBus;
+  soundEngine?: SoundPlayer;
 }
 
 export type Precision = "travel" | "click" | "text" | "normal";

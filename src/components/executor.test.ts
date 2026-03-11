@@ -78,7 +78,7 @@ describe("executor", () => {
     box.textEl.appendChild(lockSpan);
     const eventBus = createEventBus();
     const agent = createAgent(lockSpan);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     const pending = executor.typeInto(box, "!");
     await vi.runAllTimersAsync();
@@ -101,7 +101,7 @@ describe("executor", () => {
 
     const eventBus = createEventBus();
     const agent = createAgent(lockSpan);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     const pending = executor.backspace(box, 2);
     await vi.runAllTimersAsync();
@@ -125,7 +125,7 @@ describe("executor", () => {
 
     const eventBus = createEventBus();
     const agent = createAgent(lockSpan);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     executor.deleteRange(box);
 
@@ -145,7 +145,7 @@ describe("executor", () => {
 
     const eventBus = createEventBus();
     const agent = createAgent(typingLock);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     const pending = executor.typeInto(box, "xy");
     await Promise.resolve();
@@ -170,7 +170,7 @@ describe("executor", () => {
     const typingLock = acquireCaretLock(box.textEl, 1, 1) as HTMLSpanElement;
     const eventBus = createEventBus();
     const agent = createAgent(typingLock);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     const pending = executor.typeInto(box, "x");
     await Promise.resolve();
@@ -197,7 +197,7 @@ describe("executor", () => {
     setLockProtectedRange(lockSpan, 1, 2);
     const eventBus = createEventBus();
     const agent = createAgent(lockSpan);
-    const executor = new Executor(agent, createContext(eventBus));
+    const executor = new Executor(agent, createContext(eventBus), 0);
 
     const pending = executor.backspace(box, 1);
     await Promise.resolve();

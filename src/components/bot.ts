@@ -54,6 +54,7 @@ export class Bot {
   lockSpan: HTMLSpanElement | null;
   exec: Executor;
   planner: RandomPlanner;
+  clickSoundIndex: number;
 
   constructor(id: number, ctx: BotContext) {
     this.id = id;
@@ -62,6 +63,7 @@ export class Bot {
     this.mode = "arrow";
     this.birth = performance.now();
     this.maxLifetime = rand(BOT_LIFETIME_MIN, BOT_LIFETIME_MAX);
+    this.clickSoundIndex = Math.floor(Math.random() * 4);
 
     const p = randomEdgePoint(ctx.wsRect());
     this.x = p.x;
@@ -75,7 +77,7 @@ export class Bot {
     this.activeBox = null;
     this.lockSpan = null;
 
-    this.exec = new Executor(this, ctx);
+    this.exec = new Executor(this, ctx, this.clickSoundIndex);
     this.planner = new RandomPlanner();
     this.updateCursor();
   }

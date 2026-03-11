@@ -2,26 +2,28 @@ import { Bot } from "./components/bot";
 import { FONT, createBox as createBoxEl, measureCharWidth, nextZIndex, placeCaretEnd, showClick } from "./components/edit";
 import { createEventBus } from "./components/events";
 import { INITIAL_BOTS, ecologyLoop } from "./components/pool";
-import { initSound } from "./components/sound";
+import { SoundEngine } from "./components/sound";
 import "./style.css";
 import type { BotContext, Box, BoxElement } from "./types";
 
 const workspaceEl = document.getElementById("workspace");
 const cursorLayerEl = document.getElementById("cursorLayer");
+const hintEl = document.getElementById("hint");
 
-if (!(workspaceEl instanceof HTMLElement) || !(cursorLayerEl instanceof HTMLElement)) {
-  throw new Error("Workspace root elements are missing.");
+if (!(workspaceEl instanceof HTMLElement) || !(cursorLayerEl instanceof HTMLElement) || !(hintEl instanceof HTMLElement)) {
+  throw new Error("Required root elements are missing.");
 }
 
 const workspace: HTMLElement = workspaceEl;
 const cursorLayer: HTMLElement = cursorLayerEl;
+const hint: HTMLElement = hintEl;
 
 function wsRect(): DOMRect {
   return workspace.getBoundingClientRect();
 }
 
 const eventBus = createEventBus();
-initSound(eventBus);
+const soundEngine = new SoundEngine();
 const boxes: Box[] = [];
 const bots = new Map<number, Bot>();
 let boxSeq = 0;
@@ -34,7 +36,7 @@ function createBox(left: number, top: number, text: string): Box {
   return box;
 }
 
-const botCtx: BotContext = { boxes, cursorLayer, charW, wsRect, createBox, eventBus };
+const botCtx: BotContext = { boxes, cursorLayer, charW, wsRect, createBox, eventBus, soundEngine };
 
 function spawnBot(): void {
   const bot = new Bot(++botSeq, botCtx);
@@ -46,11 +48,52 @@ function activeBotCount(): number {
   return [...bots.values()].filter((bot) => !bot.retiring).length;
 }
 
+function startBots(): void {
+  for (let i = 0; i < INITIAL_BOTS; i++) {
+    window.setTimeout(spawnBot, i * 150);
+  }
+  void ecologyLoop({
+    activeBotCount,
+    spawnBot,
+    getActiveBots: () => [...bots.values()].filter((bot) => !bot.retiring),
+  });
+}
+
+/* ---------- Loading & activation flow ---------- */
+
+hint.textContent = "Waiting for collaborators to join\u2026";
+
+let soundReady = false;
+let activated = false;
+
+soundEngine.load().then(() => {
+  soundReady = true;
+  if (!activated) {
+    hint.textContent = "Click to create text";
+  }
+});
+
+function activate(): void {
+  if (activated) return;
+  activated = true;
+  hint.remove();
+  void soundEngine.start();
+  startBots();
+}
+
+/* ---------- Workspace interaction ---------- */
+
 workspace.addEventListener("mousedown", (e) => {
   showClick(e.clientX, e.clientY, cursorLayer);
 });
 
 workspace.addEventListener("click", (e) => {
+  if (!soundReady) return;
+
+  if (!activated) {
+    activate();
+  }
+
   if (e.target !== workspace) return;
   const r = wsRect();
   const box = createBox(e.clientX - r.left, e.clientY - r.top, "");
@@ -110,13 +153,4 @@ window.addEventListener("mousemove", (e) => {
 
 window.addEventListener("mouseup", () => {
   dragging = null;
-});
-
-for (let i = 0; i < INITIAL_BOTS; i++) {
-  window.setTimeout(spawnBot, i * 150);
-}
-void ecologyLoop({
-  activeBotCount,
-  spawnBot,
-  getActiveBots: () => [...bots.values()].filter((bot) => !bot.retiring),
 });
