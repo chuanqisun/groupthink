@@ -1,4 +1,14 @@
 import { chance, rand } from "../timing";
+import type { Dictionary } from "./dictionary";
+import { applyProduction, createSeed } from "./grammar";
+
+/** Shared reference to the loaded dictionary (set via setDictionary). */
+let dict: Dictionary | null = null;
+
+/** Called once after the dictionary loads to enable POS-aware generation. */
+export function setDictionary(d: Dictionary): void {
+  dict = d;
+}
 
 function choice<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;
@@ -21,67 +31,62 @@ function wordRanges(text: string): Array<[number, number]> {
     .filter((range): range is [number, number] => range !== null);
 }
 
-export const WORDS = [
-  "human",
-  "bot",
-  "shared",
-  "space",
-  "cursor",
-  "draft",
-  "edit",
-  "text",
-  "hello",
-  "note",
-  "tiny",
-  "blue",
-  "random",
-  "growing",
-  "canvas",
-  "alive",
-  "typing",
-  "select",
-  "delete",
-  "replace",
-  "move",
-  "click",
-  "future",
-  "signal",
-  "paper",
-  "soft",
-  "prompt",
-  "idea",
-  "loop",
-  "trace",
-  "shape",
-  "pixel",
-  "small",
-  "story",
-  "marker",
-  "world",
-  "flow",
-  "plain",
-  "quick",
-  "slow",
-  "thought",
-  "field",
-  "line",
-  "window",
+const FALLBACK_WORDS = [
+  "human", "bot", "shared", "space", "cursor", "draft", "edit", "text",
+  "hello", "note", "tiny", "blue", "random", "growing", "canvas", "alive",
+  "typing", "select", "delete", "replace", "move", "click", "future", "signal",
+  "paper", "soft", "prompt", "idea", "loop", "trace", "shape", "pixel",
+  "small", "story", "marker", "world", "flow", "plain", "quick", "slow",
+  "thought", "field", "line", "window",
 ] as const;
 
-export function randomWords(min = 1, max = 3): string {
+function randomFallbackWords(min = 1, max = 3): string {
   const n = Math.floor(rand(min, max + 1));
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(choice(WORDS));
+  for (let i = 0; i < n; i++) out.push(choice(FALLBACK_WORDS));
   return out.join(" ");
 }
 
+export function randomWords(min = 1, max = 3): string {
+  if (dict) {
+    const n = Math.floor(rand(min, max + 1));
+    const posChoices = ["noun", "verb", "adjective", "adverb"];
+    const out: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const pos = choice(posChoices);
+      out.push(dict.random(pos) ?? choice(FALLBACK_WORDS));
+    }
+    return out.join(" ");
+  }
+  return randomFallbackWords(min, max);
+}
+
 export function randomPhrase(min?: number, max?: number): string {
+  if (dict) {
+    return createSeed(dict);
+  }
   let s = randomWords(min, max);
   if (chance(0.22)) s += choice([".", "?", "!", "..."]);
   return s;
 }
 
 export function appendChunk(current: string): string {
+  if (dict) {
+    const result = applyProduction(current, dict);
+    if (result) {
+      // Return only the appended portion (difference from original)
+      if (result.text.startsWith(current)) {
+        const added = result.text.slice(current.length);
+        return added;
+      }
+      // If production modified inline, just return a small addition
+    }
+    // Fallback: append a random word with spacing
+    const word = dict.random(choice(["noun", "verb", "adjective", "adverb"])) ?? choice(FALLBACK_WORDS);
+    let s = word;
+    if (current && !/\s$/.test(current) && /^[a-z]/i.test(s)) s = " " + s;
+    return s;
+  }
   let s = randomPhrase(1, chance(0.5) ? 2 : 4);
   if (current && !/\s$/.test(current) && /^[a-z]/i.test(s)) s = " " + s;
   return s;

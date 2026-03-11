@@ -1,6 +1,8 @@
 import { Bot } from "./components/bot";
 import { FONT, createBox as createBoxEl, measureCharWidth, nextZIndex, placeCaretEnd, showClick } from "./components/edit";
 import { createEventBus } from "./components/events";
+import { loadDictionary } from "./components/linguistics/dictionary";
+import { setDictionary } from "./components/linguistics/linguistics";
 import { INITIAL_BOTS, ecologyLoop } from "./components/pool";
 import { SoundEngine } from "./components/sound";
 import "./style.css";
@@ -66,7 +68,10 @@ hint.textContent = "Waiting for collaborators to join…";
 let soundReady = false;
 let activated = false;
 
-soundEngine.load().then(() => {
+Promise.all([
+  soundEngine.load(),
+  loadDictionary().then((dict) => setDictionary(dict)),
+]).then(() => {
   soundReady = true;
   if (!activated) {
     hint.textContent = "Don't lose yourself - click to start";
