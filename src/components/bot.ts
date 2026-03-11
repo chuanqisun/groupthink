@@ -1,7 +1,7 @@
 import { ARROW_SVG, IBEAM_SVG } from "./cursors";
 import { canBotUseBox, getText, isHumanFocusedBox, moveBox, safeSyncTextEl, syncDocText } from "./edit";
 import { Executor } from "./executor";
-import { expandDeleteRange, getBackspaceRange, pickRange, randomWords } from "./linguistics";
+import { expandDeleteRange, getBackspaceRange, pickRange, randomWords } from "./linguistics/linguistics";
 import { acquireCaretLock, acquireSelectionLock, isRangeFree, releaseLock } from "./locks";
 import { randomEdgePoint } from "./movement";
 import { RandomPlanner } from "./planner";

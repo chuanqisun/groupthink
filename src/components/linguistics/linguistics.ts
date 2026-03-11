@@ -1,4 +1,4 @@
-import { chance, rand } from "./timing";
+import { chance, rand } from "../timing";
 
 function choice<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;

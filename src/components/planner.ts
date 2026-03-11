@@ -1,6 +1,15 @@
 import { appendCmd, backspaceCmd, createCmd, deleteCmd, insertCmd, moveBoxCmd, moveCmd, replaceCmd } from "./commands";
 import { canBotUseBox, findOpenSpot, getText } from "./edit";
-import { appendChunk, expandDeleteRange, getBackspaceRange, insertChunk, pickRange, randomPhrase, randomWords, wordBoundaries } from "./linguistics";
+import {
+  appendChunk,
+  expandDeleteRange,
+  getBackspaceRange,
+  insertChunk,
+  pickRange,
+  randomPhrase,
+  randomWords,
+  wordBoundaries,
+} from "./linguistics/linguistics";
 import { chance, rand } from "./timing";
 import type { BotContext, Box, PlanResult } from "./types";
 
