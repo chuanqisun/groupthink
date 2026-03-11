@@ -69,7 +69,7 @@ let activated = false;
 soundEngine.load().then(() => {
   soundReady = true;
   if (!activated) {
-    hint.textContent = "Click to create text";
+    hint.textContent = "Don't lose yourself - click to start";
   }
 });
 
