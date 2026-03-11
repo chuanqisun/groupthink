@@ -68,10 +68,7 @@ hint.textContent = "Waiting for collaborators to join…";
 let soundReady = false;
 let activated = false;
 
-Promise.all([
-  soundEngine.load(),
-  loadDictionary().then((dict) => setDictionary(dict)),
-]).then(() => {
+Promise.all([soundEngine.load(), loadDictionary().then((dict) => setDictionary(dict))]).then(() => {
   soundReady = true;
   if (!activated) {
     hint.textContent = "Don't lose yourself - click to start";
