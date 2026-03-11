@@ -54,6 +54,7 @@ export class Bot {
   lockSpan: HTMLSpanElement | null;
   exec: Executor;
   planner: RandomPlanner;
+  mouseClickIndex: number;
 
   constructor(id: number, ctx: BotContext) {
     this.id = id;
@@ -75,7 +76,8 @@ export class Bot {
     this.activeBox = null;
     this.lockSpan = null;
 
-    this.exec = new Executor(this, ctx);
+    this.mouseClickIndex = Math.floor(Math.random() * 4);
+    this.exec = new Executor(this, ctx, this.mouseClickIndex);
     this.planner = new RandomPlanner();
     this.updateCursor();
   }
@@ -167,6 +169,7 @@ export class Bot {
 
   async _execMove(cmd: Extract<Command, { type: "move" }>): Promise<void> {
     this.setMode("arrow");
+    this.ctx.soundEngine?.playMouseClick(this.mouseClickIndex);
     await this.exec.moveTo(cmd.x, cmd.y, "travel");
     await sleep(rand(40, 180));
   }

@@ -87,3 +87,14 @@ body {
     transform: scale(1.8);
   }
 }
+#hint {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 16px/1.4 system-ui, sans-serif;
+  color: GrayText;
+  pointer-events: none;
+  z-index: 10;
+}
