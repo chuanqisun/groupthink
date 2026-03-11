@@ -73,13 +73,9 @@ export function randomPhrase(min?: number, max?: number): string {
 export function appendChunk(current: string): string {
   if (dict) {
     const result = applyProduction(current, dict);
-    if (result) {
+    if (result && result.text.startsWith(current)) {
       // Return only the appended portion (difference from original)
-      if (result.text.startsWith(current)) {
-        const added = result.text.slice(current.length);
-        return added;
-      }
-      // If production modified inline, just return a small addition
+      return result.text.slice(current.length);
     }
     // Fallback: append a random word with spacing
     const word = dict.random(choice(["noun", "verb", "adjective", "adverb"])) ?? choice(FALLBACK_WORDS);

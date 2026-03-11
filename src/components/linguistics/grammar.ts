@@ -119,9 +119,8 @@ const prependAdjective: Production = {
     const nouns = words.filter((w) => wordPos(w.word, dict) === "noun");
     if (!nouns.length) return null;
     const target = choice(nouns);
-    // Don't prepend if already preceded by an adjective
-    const prevChar = target.start > 0 ? text[target.start - 1] : "";
-    if (prevChar !== " " && prevChar !== "" && target.start !== 0) return null;
+    // Don't prepend if not preceded by a space (or at start of text)
+    if (target.start > 0 && text[target.start - 1] !== " ") return null;
     const adj = dict.random("adjective");
     if (!adj) return null;
     const newText = text.slice(0, target.start) + adj + " " + text.slice(target.start);
@@ -334,7 +333,11 @@ export const productions: Production[] = [
  * Returns null if no rule could be applied.
  */
 export function applyProduction(text: string, dict: Dictionary, maxAttempts = 6): ProductionResult | null {
-  const shuffled = [...productions].sort(() => Math.random() - 0.5);
+  const shuffled = [...productions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
   for (let i = 0; i < Math.min(maxAttempts, shuffled.length); i++) {
     const rule = shuffled[i]!;
     const result = rule.apply(text, dict);
